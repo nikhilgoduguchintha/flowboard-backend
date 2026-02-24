@@ -1,3 +1,4 @@
+import { supabase } from "../lib/supabase.js";
 import type { ActionResult, Action } from "../types/index.js";
 
 interface WebhookPayload {
@@ -41,7 +42,6 @@ function resolveIssueActions(
   const actions: Action[] = [];
 
   if (event === "UPDATE" && old_record) {
-    // Status changed — move card on board
     if (record.status !== old_record.status) {
       actions.push({
         type: "move_card",
@@ -50,7 +50,6 @@ function resolveIssueActions(
         fromColumn: old_record.status as string,
       });
 
-      // Update sprint progress if moved to done
       if (record.status === "done" && record.sprint_id) {
         actions.push({
           type: "update_progress",
@@ -65,7 +64,6 @@ function resolveIssueActions(
       });
     }
 
-    // Assignee changed — refresh issue list
     if (record.assignee_id !== old_record.assignee_id) {
       actions.push({
         type: "invalidate_issues",
@@ -114,8 +112,6 @@ function resolveSprintActions(
     const statusChanged = record.status !== old_record.status;
 
     if (statusChanged) {
-      // Sprint started or closed — full layout invalidation
-      // because SDUI sections change based on sprintStatus
       actions.push({ type: "invalidate_layout" });
       actions.push({
         type: "show_notification",
@@ -136,16 +132,26 @@ function resolveSprintActions(
 
 // ─── Comment Actions ──────────────────────────────────────────────────────────
 
-function resolveCommentActions(
+async function resolveCommentActions(
   event: string,
   record: Record<string, unknown>
-): ActionResult {
+): Promise<ActionResult> {
   const actions: Action[] = [];
+
+  // Look up project_id via the issue
+  const issueId = record.issue_id as string;
+  const { data: issue } = await supabase
+    .from("issues")
+    .select("project_id")
+    .eq("id", issueId)
+    .single();
+
+  const projectId = issue?.project_id ?? null;
 
   if (event === "INSERT") {
     actions.push({
       type: "invalidate_comments",
-      issueId: record.issue_id as string,
+      issueId,
     });
 
     const mentions = record.mentions as string[];
@@ -153,15 +159,15 @@ function resolveCommentActions(
       actions.push({
         type: "notify_mentions",
         mentions,
-        issueId: record.issue_id as string,
+        issueId,
         message: "You were mentioned in a comment",
       });
     }
   }
 
   return {
-    projectId: null,
-    issueId: record.issue_id as string,
+    projectId,
+    issueId,
     actions,
   };
 }
@@ -174,8 +180,6 @@ function resolveMemberActions(
 ): ActionResult {
   const actions: Action[] = [];
 
-  // Any member change — invalidate that user's layout
-  // because their role may have changed
   if (["INSERT", "UPDATE", "DELETE"].includes(event)) {
     actions.push({
       type: "invalidate_layout",
