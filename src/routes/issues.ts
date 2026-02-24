@@ -116,6 +116,11 @@ router.post(
       return;
     }
 
+    // ── Auto-promote: if sprint is assigned, start at todo not backlog ────────
+    const requestedStatus = status ?? "backlog";
+    const autoPromoted = !!sprintId && requestedStatus === "backlog";
+    const resolvedStatus = autoPromoted ? "todo" : requestedStatus;
+
     // Get next issue number for this project
     const { data: issueNumber } = await supabase.rpc("next_issue_number", {
       p_project_id: projectId,
@@ -129,7 +134,7 @@ router.post(
         type,
         title,
         description,
-        status: status ?? "backlog",
+        status: resolvedStatus,
         priority: priority ?? "medium",
         assignee_id: assigneeId ?? null,
         reporter_id: req.user.id,
@@ -149,7 +154,7 @@ router.post(
       return;
     }
 
-    res.status(201).json({ issue: data });
+    res.status(201).json({ issue: data, autoPromoted });
   }
 );
 
@@ -173,19 +178,38 @@ router.patch(
       description?: string;
       status?: string;
       priority?: IssuePriority;
-      assigneeId?: string;
-      sprintId?: string;
+      assigneeId?: string | null;
+      sprintId?: string | null;
       storyPoints?: number;
       dueDate?: string;
       typeFields?: Record<string, unknown>;
     };
+
+    // ── Auto-promote: if sprint is being assigned, check current status ───────
+    let autoPromoted = false;
+    let resolvedStatus = status;
+
+    if (sprintId && status === undefined) {
+      // Sprint is being set but status wasn't explicitly changed
+      // Fetch current issue to check its status
+      const { data: current } = await supabase
+        .from("issues")
+        .select("status")
+        .eq("id", req.params.issueId)
+        .single();
+
+      if (current?.status === "backlog") {
+        resolvedStatus = "todo";
+        autoPromoted = true;
+      }
+    }
 
     const { data, error } = await supabase
       .from("issues")
       .update({
         ...(title !== undefined && { title }),
         ...(description !== undefined && { description }),
-        ...(status !== undefined && { status }),
+        ...(resolvedStatus !== undefined && { status: resolvedStatus }),
         ...(priority !== undefined && { priority }),
         ...(assigneeId !== undefined && { assignee_id: assigneeId }),
         ...(sprintId !== undefined && { sprint_id: sprintId }),
@@ -205,7 +229,7 @@ router.patch(
       return;
     }
 
-    res.json({ issue: data });
+    res.json({ issue: data, autoPromoted });
   }
 );
 
