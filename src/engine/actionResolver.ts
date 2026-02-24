@@ -1,5 +1,5 @@
-import { supabase } from "../lib/supabase.js";
-import type { ActionResult, Action } from "../types/index.js";
+import { supabase } from "../lib/supabase";
+import type { ActionResult, Action } from "../types/index";
 
 interface WebhookPayload {
   type: "INSERT" | "UPDATE" | "DELETE";
