@@ -22,10 +22,11 @@ export async function handleWebhook(payload: WebhookPayload): Promise<void> {
   const { data: event, error: logError } = await supabase
     .from("webhook_events")
     .insert({
-      table_name: payload.table,
-      event_type: payload.type,
-      payload,
-      processed: false,
+      payload: {
+        table_name: payload.table,
+        event_type: payload.type,
+        ...payload,
+      },
     })
     .select("id")
     .single();
@@ -62,7 +63,7 @@ export async function handleWebhook(payload: WebhookPayload): Promise<void> {
     // ── Push actions via SSE ────────────────────────────────────────────────
     if (projectId) {
       pushToProject(projectId, "update", {
-        actions: [{ type: "invalidate_activity", projectId }],
+        actions: [...actions, { type: "invalidate_activity", projectId }],
       });
     }
 
@@ -131,7 +132,7 @@ async function handleMentionNotifications(
 async function markProcessed(eventId: string): Promise<void> {
   await supabase
     .from("webhook_events")
-    .update({ processed: true })
+    .update({ processed_at: new Date().toISOString() })
     .eq("id", eventId);
 }
 
