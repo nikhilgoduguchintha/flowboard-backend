@@ -49,13 +49,11 @@ export async function handleWebhook(payload: WebhookPayload): Promise<void> {
     const layoutAction = actions.find((a) => a.type === "invalidate_layout");
 
     if (layoutAction) {
-      // User-specific invalidation (e.g. member role changed)
       const targetUserId = layoutAction.userId as string | undefined;
 
       if (targetUserId && projectId) {
         await invalidateUserLayout(targetUserId, projectId);
       } else if (projectId) {
-        // Invalidate all project members
         const memberIds = await getProjectMemberIds(projectId);
         await invalidateProjectLayout(projectId, memberIds);
       }
@@ -63,7 +61,9 @@ export async function handleWebhook(payload: WebhookPayload): Promise<void> {
 
     // ── Push actions via SSE ────────────────────────────────────────────────
     if (projectId) {
-      pushToProject(projectId, "update", { actions });
+      pushToProject(projectId, "update", {
+        actions: [{ type: "invalidate_activity", projectId }],
+      });
     }
 
     // ── Handle @mention notifications ───────────────────────────────────────
@@ -112,7 +112,6 @@ async function handleMentionNotifications(
 ): Promise<void> {
   if (mentions.length === 0) return;
 
-  // Fetch user ids for all mentioned handles in one query
   const { data: users } = await supabase
     .from("users")
     .select("id, user_handle")
