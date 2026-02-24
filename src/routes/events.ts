@@ -5,6 +5,10 @@ import { registerClient, removeClient } from "../services/sseManager";
 
 const router = Router();
 
+const allowedOrigins = (process.env.FRONTEND_URL ?? "http://localhost:5173")
+  .split(",")
+  .map((url) => url.trim());
+
 router.get("/", async (req: Request, res: Response): Promise<void> => {
   const { token, projectId } = req.query as {
     token?: string;
@@ -27,11 +31,18 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
+  // ── Dynamic CORS origin — only one value allowed by spec ────
+  const requestOrigin = req.headers.origin ?? "";
+  const allowedOrigin = allowedOrigins.includes(requestOrigin)
+    ? requestOrigin
+    : allowedOrigins[0];
+
   // SSE headers
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
-  res.setHeader("Access-Control-Allow-Origin", process.env.FRONTEND_URL ?? "*");
+  res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
+  res.setHeader("Access-Control-Allow-Credentials", "true");
   res.flushHeaders();
 
   // Register SSE connection
