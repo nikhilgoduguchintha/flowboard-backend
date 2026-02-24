@@ -32,7 +32,7 @@ export const authLimiter = rateLimit({
 
 export const sseLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 60,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many SSE connections" },
