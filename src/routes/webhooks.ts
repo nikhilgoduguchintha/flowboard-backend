@@ -16,9 +16,7 @@ router.post("/supabase", async (req: Request, res: Response): Promise<void> => {
   res.status(200).json({ received: true });
 
   // Process asynchronously so we don't block the response
-  handleWebhook(req.body).catch((err: any) => {
-    console.error("[Webhook] Processing error:", err);
-  });
+  handleWebhook(req.body).catch(() => {});
 });
 
 export default router;

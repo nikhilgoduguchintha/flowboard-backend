@@ -172,9 +172,6 @@ function resolveProps(
 ): Record<string, unknown> {
   const resolver = PROP_RESOLVERS[sectionKey];
   if (!resolver) {
-    console.warn(
-      `[LayoutResolver] No prop resolver for section: "${sectionKey}"`
-    );
     return {};
   }
   return resolver(ctx);

@@ -16,8 +16,6 @@ interface WebhookPayload {
 // ─── Main Handler ─────────────────────────────────────────────────────────────
 
 export async function handleWebhook(payload: WebhookPayload): Promise<void> {
-  console.log(`[Webhook] Received ${payload.type} on ${payload.table}`);
-
   // Log webhook for reliability — store before processing
   const { data: event, error: logError } = await supabase
     .from("webhook_events")
@@ -32,7 +30,6 @@ export async function handleWebhook(payload: WebhookPayload): Promise<void> {
     .single();
 
   if (logError || !event) {
-    console.error("[Webhook] Failed to log webhook:", logError);
     return;
   }
 
@@ -85,9 +82,7 @@ export async function handleWebhook(payload: WebhookPayload): Promise<void> {
     }
 
     await markProcessed(event.id);
-    console.log(`[Webhook] Processed ${payload.type} on ${payload.table}`);
   } catch (err) {
-    console.error("[Webhook] Processing error:", err);
     await markFailed(
       event.id,
       err instanceof Error ? err.message : "Unknown error"

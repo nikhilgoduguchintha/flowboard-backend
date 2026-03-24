@@ -116,6 +116,110 @@ router.post(
   }
 );
 
+// ─── Complete Profile (Google OAuth onboarding) ───────────────────────────────
+//
+// Called after a Google OAuth signup to collect the fields Supabase can't
+// provide: the user's chosen handle and their role (manager vs member).
+// We intentionally skip the `authenticate` middleware here — that middleware
+// auto-creates a profile from the email prefix, which would bypass the user's
+// choice. Instead we verify the JWT manually and create the profile ourselves.
+
+router.post(
+  "/complete-profile",
+  authLimiter,
+  async (req: Request, res: Response): Promise<void> => {
+    // Verify JWT manually (same pattern as /logout)
+    const token = req.headers.authorization?.split("Bearer ")[1];
+    if (!token) {
+      res.status(401).json({ error: "No token provided" });
+      return;
+    }
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
+
+    if (authError || !user) {
+      res.status(401).json({ error: "Invalid or expired token" });
+      return;
+    }
+
+    const { userHandle, isManager } = req.body as {
+      userHandle: string;
+      isManager?: boolean;
+    };
+
+    if (!userHandle) {
+      res.status(400).json({ error: "Username is required" });
+      return;
+    }
+
+    // Validate handle format
+    const handleRegex = /^[a-z0-9_-]{3,20}$/;
+    if (!handleRegex.test(userHandle)) {
+      res.status(400).json({
+        error:
+          "Handle must be 3-20 characters — lowercase letters, numbers, hyphens, underscores only",
+      });
+      return;
+    }
+
+    // Idempotent — if profile already exists, return it
+    const { data: existingProfile } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (existingProfile) {
+      res.status(200).json({ user: existingProfile });
+      return;
+    }
+
+    // Check handle uniqueness
+    const { data: handleTaken } = await supabase
+      .from("users")
+      .select("id")
+      .eq("user_handle", userHandle)
+      .maybeSingle();
+
+    if (handleTaken) {
+      res.status(400).json({ error: "Username is already taken" });
+      return;
+    }
+
+    // Pull identity from Google OAuth metadata
+    const email = user.email ?? "";
+    const name =
+      user.user_metadata?.full_name ??
+      user.user_metadata?.name ??
+      email.split("@")[0];
+    const avatarSeed = user.user_metadata?.avatar_url ?? email;
+
+    // Create the profile row
+    const { data: profile, error: profileError } = await supabase
+      .from("users")
+      .insert({
+        id: user.id,
+        email,
+        name,
+        user_handle: userHandle,
+        avatar_seed: avatarSeed,
+        is_manager: isManager ?? false,
+      })
+      .select()
+      .single();
+
+    if (profileError) {
+      res.status(500).json({ error: profileError.message });
+      return;
+    }
+
+    res.status(201).json({ user: profile });
+  }
+);
+
 // ─── Logout ───────────────────────────────────────────────────────────────────
 
 router.post("/logout", async (req: Request, res: Response): Promise<void> => {

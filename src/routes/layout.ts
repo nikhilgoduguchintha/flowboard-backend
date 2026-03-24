@@ -30,8 +30,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     await setLayout(userId, projectId, layout);
 
     res.json({ layout, fromCache: false });
-  } catch (err) {
-    console.error("[Layout] Error:", err);
+  } catch {
     res.status(500).json({ error: "Failed to resolve layout" });
   }
 });

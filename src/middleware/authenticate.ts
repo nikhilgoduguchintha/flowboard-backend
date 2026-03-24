@@ -14,19 +14,12 @@ export async function authenticate(
     }
 
     const token = authHeader.split("Bearer ")[1];
-    console.log(
-      "[Auth] token sub:",
-      JSON.parse(Buffer.from(token.split(".")[1], "base64").toString()).sub
-    );
 
     // Verify token with Supabase Auth
     const {
       data: { user },
       error,
     } = await supabase.auth.getUser(token);
-
-    console.log("Auth user:", user?.id);
-    console.log("Auth error:", error);
 
     if (error || !user) {
       res.status(401).json({ error: "Invalid or expired token" });
@@ -40,8 +33,6 @@ export async function authenticate(
       .eq("id", user.id)
       .single();
 
-    console.log("[Auth] profile result:", { profile: !!profile, profileError });
-
     // Profile exists — attach and continue
     if (profile) {
       req.user = profile;
@@ -49,48 +40,9 @@ export async function authenticate(
       return;
     }
 
-    // Profile not found — auto-create for OAuth users (e.g. Google)
-    if (profileError) {
-      const email = user.email ?? "";
-      const name =
-        user.user_metadata?.full_name ??
-        user.user_metadata?.name ??
-        email.split("@")[0];
-      const user_handle = email
-        .split("@")[0]
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "_");
-
-      const { data: newProfile, error: createError } = await supabase
-        .from("users")
-        .insert({
-          id: user.id,
-          email,
-          name,
-          user_handle,
-          avatar_seed: email,
-        })
-        .select()
-        .single();
-
-      console.log("[Auth] auto-created profile:", {
-        newProfile: !!newProfile,
-        createError,
-      });
-
-      if (createError || !newProfile) {
-        res.status(401).json({ error: "Failed to create user profile" });
-        return;
-      }
-
-      req.user = newProfile;
-      next();
-      return;
-    }
-
-    res.status(401).json({ error: "User profile not found" });
-  } catch (err) {
-    console.error("[Auth] Unexpected error:", err);
+    // No profile found — user needs to complete onboarding before accessing the app
+    res.status(401).json({ error: "Profile not found. Please complete onboarding." });
+  } catch {
     res.status(500).json({ error: "Authentication failed" });
   }
 }

@@ -36,10 +36,6 @@ export function registerClient(
   }
   projectIndex.get(projectId)!.add(userId);
 
-  console.log(
-    `[SSE] Client connected — userId: ${userId} projectId: ${projectId} ` +
-      `total: ${clients.size}`
-  );
 }
 
 // ─── Remove ───────────────────────────────────────────────────────────────────
@@ -57,10 +53,6 @@ export function removeClient(userId: string): void {
   }
 
   clients.delete(userId);
-
-  console.log(
-    `[SSE] Client disconnected — userId: ${userId} total: ${clients.size}`
-  );
 }
 
 // ─── Push to User ─────────────────────────────────────────────────────────────
@@ -72,8 +64,7 @@ export function pushToUser(userId: string, event: string, data: unknown): void {
   try {
     client.res.write(`event: ${event}\n`);
     client.res.write(`data: ${JSON.stringify(data)}\n\n`);
-  } catch (err) {
-    console.error(`[SSE] Failed to push to user ${userId}:`, err);
+  } catch {
     removeClient(userId);
   }
 }
@@ -88,17 +79,12 @@ export function pushToProject(
   const userIds = projectIndex.get(projectId);
   if (!userIds || userIds.size === 0) return;
 
-  console.log(
-    `[SSE] Pushing "${event}" to ${userIds.size} clients in project ${projectId}`
-  );
-
   userIds.forEach((userId) => pushToUser(userId, event, data));
 }
 
 // ─── Push to All ──────────────────────────────────────────────────────────────
 
 export function pushToAll(event: string, data: unknown): void {
-  console.log(`[SSE] Broadcasting "${event}" to all ${clients.size} clients`);
   clients.forEach((_, userId) => pushToUser(userId, event, data));
 }
 

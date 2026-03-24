@@ -34,7 +34,6 @@ export async function getLayout(
   // L1 — memory check
   const local = localCache.get(key);
   if (local) {
-    console.log(`[Cache] L1 hit — ${key}`);
     return local;
   }
 
@@ -42,7 +41,6 @@ export async function getLayout(
   try {
     const cached = await redis.get<string>(key);
     if (cached) {
-      console.log(`[Cache] L2 hit — ${key}`);
       const parsed =
         typeof cached === "string"
           ? (JSON.parse(cached) as ResolvedSection[])
@@ -52,12 +50,10 @@ export async function getLayout(
       localCache.set(key, parsed);
       return parsed;
     }
-  } catch (err) {
+  } catch {
     // Redis failure should not break the request
-    console.error("[Cache] Redis get error:", err);
   }
 
-  console.log(`[Cache] Miss — ${key}`);
   return null;
 }
 
@@ -76,9 +72,8 @@ export async function setLayout(
   // Write to L2
   try {
     await redis.set(key, JSON.stringify(layout), { ex: REDIS_TTL });
-    console.log(`[Cache] Set — ${key} (TTL: ${REDIS_TTL}s)`);
-  } catch (err) {
-    console.error("[Cache] Redis set error:", err);
+  } catch {
+    // Redis failure should not break the request
   }
 }
 
@@ -96,9 +91,8 @@ export async function invalidateUserLayout(
   // Clear L2
   try {
     await redis.del(key);
-    console.log(`[Cache] Invalidated — ${key}`);
-  } catch (err) {
-    console.error("[Cache] Redis del error:", err);
+  } catch {
+    // Redis failure should not break the request
   }
 }
 
@@ -110,10 +104,6 @@ export async function invalidateProjectLayout(
   memberIds: string[]
 ): Promise<void> {
   if (memberIds.length === 0) return;
-
-  console.log(
-    `[Cache] Invalidating layout for ${memberIds.length} members in project ${projectId}`
-  );
 
   await Promise.all(
     memberIds.map((userId) => invalidateUserLayout(userId, projectId))

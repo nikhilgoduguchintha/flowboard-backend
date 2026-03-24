@@ -8,8 +8,6 @@ const router = Router();
 // ─── Get All Projects for Current User ───────────────────────────────────────
 
 router.get("/", async (req: Request, res: Response): Promise<void> => {
-  console.log("[projects] getAll for user:", req.user.id);
-
   const { data, error } = await supabase
     .from("project_members")
     .select(
@@ -23,8 +21,6 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     `
     )
     .eq("user_id", req.user.id);
-  console.log("[projects] raw data:", JSON.stringify(data, null, 2));
-  console.log("[projects] error:", error);
   if (error) {
     res.status(500).json({ error: error.message });
     return;
@@ -37,7 +33,6 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       role: d.role,
       joined_at: d.joined_at,
     }));
-  console.log("[projects] filtered projects:", projects.length);
 
   res.json({ projects });
 });

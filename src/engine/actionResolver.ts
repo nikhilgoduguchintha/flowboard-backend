@@ -27,7 +27,6 @@ export async function resolveActions(
       return resolveMemberActions(event, record);
 
     default:
-      console.warn(`[ActionResolver] Unhandled table: "${table}"`);
       return null;
   }
 }

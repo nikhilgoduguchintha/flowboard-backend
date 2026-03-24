@@ -31,13 +31,11 @@ function evaluateCondition(node: LeafNode, ctx: UserContext): boolean {
   const factValue = ctx[node.fact as keyof UserContext];
 
   if (factValue === undefined) {
-    console.warn(`[RuleEvaluator] Unknown fact: "${node.fact}"`);
     return false;
   }
 
   const op = OPERATORS[node.operator];
   if (!op) {
-    console.warn(`[RuleEvaluator] Unknown operator: "${node.operator}"`);
     return false;
   }
 

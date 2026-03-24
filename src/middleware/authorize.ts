@@ -65,8 +65,7 @@ export function requireRole(...roles: Role[]) {
       // Attach role so route handlers don't need to re-fetch it
       req.memberRole = member.role as Role;
       next();
-    } catch (err) {
-      console.error("[Authorize] Unexpected error:", err);
+    } catch {
       res.status(500).json({ error: "Authorization failed" });
     }
   };

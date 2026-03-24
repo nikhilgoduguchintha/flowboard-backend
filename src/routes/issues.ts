@@ -48,7 +48,6 @@ router.get(
 router.get(
   "/issues/:issueId",
   async (req: Request, res: Response): Promise<void> => {
-    console.log("[issues] getOne", req.params.issueId);
     const { data, error } = await supabase
       .from("issues")
       .select(
@@ -60,7 +59,6 @@ router.get(
       )
       .eq("id", req.params.issueId)
       .single();
-    console.log("[issues] getOne result:", { data: !!data, error });
 
     if (error || !data) {
       res.status(404).json({ error: "Issue not found" });

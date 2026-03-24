@@ -102,24 +102,12 @@ app.use(
     res: express.Response,
     _next: express.NextFunction
   ) => {
-    console.error("[Server] Unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 );
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 
-app.listen(PORT, () => {
-  console.log(`
-  ┌─────────────────────────────────────┐
-  │     FlowBoard Backend               │
-  │     Running on port ${PORT}            │
-  │                                     │
-  │     Health: /health                 │
-  │     API:    /api                    │
-  │     SSE:    /api/events             │
-  └─────────────────────────────────────┘
-  `);
-});
+app.listen(PORT);
 
 export default app;
