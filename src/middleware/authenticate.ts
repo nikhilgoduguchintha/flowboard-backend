@@ -40,6 +40,13 @@ export async function authenticate(
       return;
     }
 
+    // Row-not-found (PGRST116) means user hasn't completed onboarding.
+    // Any other error (e.g. permission denied from wrong API key) surfaces the real cause.
+    if (profileError && profileError.code !== "PGRST116") {
+      res.status(500).json({ error: "Profile lookup failed", detail: profileError.message });
+      return;
+    }
+
     // No profile found — user needs to complete onboarding before accessing the app
     res.status(401).json({ error: "Profile not found. Please complete onboarding." });
   } catch {
